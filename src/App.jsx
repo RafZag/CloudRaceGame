@@ -1,38 +1,10 @@
 /* eslint-disable react/no-unknown-property */
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Environment } from '@react-three/drei';
-import { useEffect } from 'react';
+import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import envUrl from './assets/golden_gate_hills_2k.exr?url';
-
-function Wing(props) {
-  const { nodes, materials } = useGLTF('/wing.glb');
-
-  return (
-    <group {...props}>
-      <mesh geometry={nodes['wing'].geometry} material={materials.wing} castShadow />
-      <mesh geometry={nodes['lines'].geometry} material={materials.lines} castShadow />
-      <mesh geometry={nodes['harness'].geometry} material={materials.Harness} castShadow />
-      <mesh geometry={nodes['head'].geometry} material={materials.helmet} castShadow />
-    </group>
-  );
-}
-
-function World(props) {
-  const { scene } = useGLTF('/world_slopes.glb');
-
-  useEffect(() => {
-    scene.traverse((child) => {
-      if (child.isMesh) {
-        child.receiveShadow = true;
-      }
-    });
-  }, [scene]);
-
-  return <primitive object={scene} {...props} />;
-}
-
-//
+import envUrl from './assets/golden_gate_hills_2k.hdr?url';
+import Wing from './components/Wing.jsx';
+import World from './components/World.jsx';
 
 function App() {
   return (
