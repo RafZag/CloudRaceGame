@@ -1,16 +1,43 @@
 /* eslint-disable react/no-unknown-property */
-import { Canvas } from '@react-three/fiber';
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
+import { Leva, monitor, useControls } from 'leva';
 import * as THREE from 'three';
 import envUrl from './assets/golden_gate_hills_2k.hdr?url';
 import Wing from './components/Wing.jsx';
 import World from './components/World.jsx';
 
+function FpsMonitor() {
+  const fpsRef = useRef(0);
+  const frameCount = useRef(0);
+  const lastTime = useRef(0);
+
+  useFrame((state) => {
+    frameCount.current += 1;
+    const now = state.clock.elapsedTime;
+    const delta = now - lastTime.current;
+    if (delta >= 0.5) {
+      fpsRef.current = Math.round(frameCount.current / delta);
+      frameCount.current = 0;
+      lastTime.current = now;
+    }
+  });
+
+  useControls('Performance', {
+    fps: monitor(() => fpsRef.current, { graph: true }),
+  });
+
+  return null;
+}
+
 function App() {
   return (
     <>
+      <Leva collapsed />
       <div id="canvas-container">
         <Canvas camera={{ position: [0, 12, 8], fov: 60 }} dpr={[1, 2]} shadows={{ type: THREE.PCFSoftShadowMap }}>
+          <FpsMonitor />
           <Environment files={envUrl} environmentRotation={[0, -Math.PI, 0]} environmentIntensity={0.7} />
           {/* <ambientLight intensity={2} /> */}
           {/* <spotLight position={[0, 10, 0]} angle={0.5} penumbra={1} decay={0} intensity={1.2} /> */}
