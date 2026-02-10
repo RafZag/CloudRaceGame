@@ -1,8 +1,9 @@
 /* eslint-disable react/no-unknown-property */
 import { useGLTF } from '@react-three/drei';
+import wingUrl from '../assets/gltf/wing.glb?url';
 
 function Wing(props) {
-  const { nodes, materials } = useGLTF('/wing.glb');
+  const { nodes, materials } = useGLTF(wingUrl);
 
   return (
     <group {...props}>
