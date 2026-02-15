@@ -36,7 +36,7 @@ function App() {
     <>
       <Leva collapsed />
       <div id="canvas-container">
-        <Canvas camera={{ position: [0, 12, 8], fov: 60 }} dpr={[1, 2]} shadows={{ type: THREE.PCFSoftShadowMap }}>
+        <Canvas camera={{ position: [0, 20, 16], fov: 60 }} dpr={[1, 2]} shadows={{ type: THREE.PCFSoftShadowMap }}>
           <FpsMonitor />
           <Environment files={envUrl} environmentRotation={[0, -Math.PI, 0]} environmentIntensity={0.7} />
           {/* <ambientLight intensity={2} /> */}

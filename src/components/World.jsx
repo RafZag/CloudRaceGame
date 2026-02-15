@@ -1,8 +1,30 @@
-import { useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
-import { useGLTF } from '@react-three/drei';
+import { useMemo } from 'react';
 import { useControls } from 'leva';
-import pyramidUrl from '../assets/gltf/piramid.glb?url';
+import Pyramid from './world/pyramid';
+import Plane from './world/plane';
+import Slope1 from './world/slope1';
+import Slope2 from './world/slope2';
+import Slope3 from './world/slope3';
+import Slope4 from './world/slope4';
+
+const WORLD_MODELS = [
+  { key: 'pyramid', Component: Pyramid },
+  { key: 'plane', Component: Plane },
+  { key: 'slope1', Component: Slope1 },
+  { key: 'slope2', Component: Slope2 },
+  { key: 'slope3', Component: Slope3 },
+  { key: 'slope4', Component: Slope4 },
+];
+
+function createRng(seed) {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 function createPerlin(seed) {
   const random = (() => {
@@ -52,30 +74,22 @@ function createPerlin(seed) {
   };
 }
 
-function World({ countX = 10, countZ = 10, spacing = 4, ...props }) {
-  const { scene } = useGLTF(pyramidUrl);
-  const instancedRef = useRef(null);
+function World({ countX = 5, countZ = 5, spacing = 4, ...props }) {
+  const { position: worldPosition = [0, 0, 0], ...restProps } = props;
   const controls = useControls('Pyramid Grid', {
     countX: { value: countX, min: 1, max: 80, step: 1 },
     countZ: { value: countZ, min: 1, max: 80, step: 1 },
     spacing: { value: spacing, min: 1, max: 20, step: 0.5 },
-    noiseScale: { value: 0.15, min: 0.01, max: 0.1, step: 0.01 },
-    noiseMultiplier: { value: 2, min: 0, max: 40, step: 0.1 },
+    noiseScale: { value: 0.03, min: 0.01, max: 0.1, step: 0.01 },
+    noiseMultiplier: { value: 6, min: 0, max: 40, step: 0.1 },
     noiseSeed: { value: 1, min: 0, max: 9999, step: 1 },
+    modelSeed: { value: 1, min: 0, max: 9999, step: 1 },
   });
-
-  useEffect(() => {
-    scene.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-  }, [scene]);
 
   const perlin = useMemo(() => createPerlin(controls.noiseSeed), [controls.noiseSeed]);
 
-  const positions = useMemo(() => {
+  const placements = useMemo(() => {
+    const rng = createRng(controls.modelSeed);
     const items = [];
     for (let x = 0; x < controls.countX; x += 1) {
       for (let z = 0; z < controls.countZ; z += 1) {
@@ -85,46 +99,34 @@ function World({ countX = 10, countZ = 10, spacing = 4, ...props }) {
         const rawY = noise * controls.noiseMultiplier;
         const stepY = 2;
         const snappedY = Math.round(rawY / stepY) * stepY;
-        items.push([baseX, snappedY, baseZ]);
+        const modelIndex = Math.floor(rng() * WORLD_MODELS.length);
+        items.push({
+          key: `${x}-${z}-${modelIndex}`,
+          position: [baseX, snappedY, baseZ],
+          modelIndex,
+        });
       }
     }
     return items;
-  }, [controls.countX, controls.countZ, controls.spacing, controls.noiseScale, controls.noiseMultiplier, perlin]);
+  }, [
+    controls.countX,
+    controls.countZ,
+    controls.spacing,
+    controls.noiseScale,
+    controls.noiseMultiplier,
+    controls.modelSeed,
+    perlin,
+  ]);
 
-  const sourceMesh = useMemo(() => {
-    let found = null;
-    scene.traverse((child) => {
-      if (!found && child.isMesh) {
-        found = child;
-      }
-    });
-    return found;
-  }, [scene]);
-
-  useEffect(() => {
-    if (!instancedRef.current) return;
-    const dummy = new THREE.Object3D();
-    positions.forEach((position, index) => {
-      dummy.position.set(position[0], position[1], position[2]);
-      dummy.updateMatrix();
-      instancedRef.current.setMatrixAt(index, dummy.matrix);
-    });
-    instancedRef.current.instanceMatrix.needsUpdate = true;
-  }, [positions]);
-
-  if (!sourceMesh) {
-    return null;
-  }
-
-  return (
-    <instancedMesh
-      ref={instancedRef}
-      args={[sourceMesh.geometry, sourceMesh.material, positions.length]}
-      castShadow
-      receiveShadow
-      {...props}
-    />
-  );
+  return placements.map((item) => {
+    const Model = WORLD_MODELS[item.modelIndex].Component;
+    const position = [
+      item.position[0] + worldPosition[0],
+      item.position[1] + worldPosition[1],
+      item.position[2] + worldPosition[2],
+    ];
+    return <Model key={item.key} position={position} {...restProps} />;
+  });
 }
 
 export default World;
