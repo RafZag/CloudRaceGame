@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useControls } from 'leva';
 import Pyramid from './world/pyramid';
 import Plane from './world/plane';
+import PlaneHigh from './world/planeHigh';
 import Slope1 from './world/slope1';
 import Slope2 from './world/slope2';
 import Slope3 from './world/slope3';
@@ -10,6 +11,7 @@ import Slope4 from './world/slope4';
 const WORLD_MODELS = [
   { key: 'pyramid', Component: Pyramid },
   { key: 'plane', Component: Plane },
+  { key: 'planeHigh', Component: PlaneHigh },
   { key: 'slope1', Component: Slope1 },
   { key: 'slope2', Component: Slope2 },
   { key: 'slope3', Component: Slope3 },
@@ -74,58 +76,139 @@ function createPerlin(seed) {
   };
 }
 
-function World({ countX = 5, countZ = 5, spacing = 4, ...props }) {
+function gridKey(x, z) {
+  return `${x}:${z}`;
+}
+
+function World({ countX = 20, countZ = 20, spacing = 4, ...props }) {
   const { position: worldPosition = [0, 0, 0], ...restProps } = props;
   const controls = useControls('Pyramid Grid', {
     countX: { value: countX, min: 1, max: 80, step: 1 },
     countZ: { value: countZ, min: 1, max: 80, step: 1 },
-    spacing: { value: spacing, min: 1, max: 20, step: 0.5 },
-    noiseScale: { value: 0.03, min: 0.01, max: 0.1, step: 0.01 },
-    noiseMultiplier: { value: 6, min: 0, max: 40, step: 0.1 },
+    noiseScale: { value: 0.02, min: 0.01, max: 0.1, step: 0.01 },
+    noiseMultiplier: { value: 8, min: 0, max: 40, step: 0.1 },
     noiseSeed: { value: 1, min: 0, max: 9999, step: 1 },
-    modelSeed: { value: 1, min: 0, max: 9999, step: 1 },
   });
 
   const perlin = useMemo(() => createPerlin(controls.noiseSeed), [controls.noiseSeed]);
 
   const placements = useMemo(() => {
-    const rng = createRng(controls.modelSeed);
     const items = [];
     for (let x = 0; x < controls.countX; x += 1) {
       for (let z = 0; z < controls.countZ; z += 1) {
-        const baseX = (x - (controls.countX - 1) / 2) * controls.spacing;
-        const baseZ = (z - (controls.countZ - 1) / 2) * controls.spacing;
+        const baseX = (x - (controls.countX - 1) / 2) * spacing;
+        const baseZ = (z - (controls.countZ - 1) / 2) * spacing;
         const noise = perlin(baseX * controls.noiseScale, baseZ * controls.noiseScale);
         const rawY = noise * controls.noiseMultiplier;
         const stepY = 2;
         const snappedY = Math.round(rawY / stepY) * stepY;
-        const modelIndex = Math.floor(rng() * WORLD_MODELS.length);
+        // const modelIndex = Math.floor(rng() * WORLD_MODELS.length);
+        const modelIndex = 1;
+
         items.push({
           key: `${x}-${z}-${modelIndex}`,
+          gridX: x,
+          gridZ: z,
+          snappedY,
           position: [baseX, snappedY, baseZ],
           modelIndex,
         });
       }
     }
-    return items;
-  }, [
-    controls.countX,
-    controls.countZ,
-    controls.spacing,
-    controls.noiseScale,
-    controls.noiseMultiplier,
-    controls.modelSeed,
-    perlin,
-  ]);
+
+    const itemByGrid = new Map();
+    items.forEach((item) => {
+      itemByGrid.set(gridKey(item.gridX, item.gridZ), item);
+    });
+
+    return items.map((item) => {
+      const getNeighborSnappedY = (offsetX, offsetZ) => {
+        const neighbor = itemByGrid.get(gridKey(item.gridX + offsetX, item.gridZ + offsetZ));
+        return neighbor ? neighbor.snappedY : item.snappedY;
+      };
+
+      const cornerNeighbors = {
+        leftTopSnappedY: [getNeighborSnappedY(-1, -1), getNeighborSnappedY(-1, 0), getNeighborSnappedY(0, -1)],
+        rightTopSnappedY: [getNeighborSnappedY(1, -1), getNeighborSnappedY(1, 0), getNeighborSnappedY(0, -1)],
+        leftBottomSnappedY: [getNeighborSnappedY(-1, 1), getNeighborSnappedY(-1, 0), getNeighborSnappedY(0, 1)],
+        rightBottomSnappedY: [getNeighborSnappedY(1, 1), getNeighborSnappedY(1, 0), getNeighborSnappedY(0, 1)],
+      };
+
+      const higherCorners = {
+        leftTop: cornerNeighbors.leftTopSnappedY.some((snappedY) => snappedY > item.snappedY),
+        rightTop: cornerNeighbors.rightTopSnappedY.some((snappedY) => snappedY > item.snappedY),
+        leftBottom: cornerNeighbors.leftBottomSnappedY.some((snappedY) => snappedY > item.snappedY),
+        rightBottom: cornerNeighbors.rightBottomSnappedY.some((snappedY) => snappedY > item.snappedY),
+      };
+
+      return {
+        ...item,
+        cornerNeighbors,
+        higherCorners,
+      };
+    });
+  }, [controls.countX, controls.countZ, controls.spacing, controls.noiseScale, controls.noiseMultiplier, perlin]);
 
   return placements.map((item) => {
-    const Model = WORLD_MODELS[item.modelIndex].Component;
+    let Model = WORLD_MODELS[item.modelIndex].Component;
+    let yRotation = 0;
+
+    switch (
+      item.higherCorners['leftTop'] +
+      item.higherCorners['rightTop'] +
+      item.higherCorners['leftBottom'] +
+      item.higherCorners['rightBottom']
+    ) {
+      case 0:
+        Model = WORLD_MODELS[1].Component; // Plane
+        break;
+      case 1:
+        Model = WORLD_MODELS[4].Component; // Slope2
+        if (item.higherCorners['leftBottom']) yRotation = Math.PI;
+        if (item.higherCorners['rightTop']) yRotation = 0;
+        if (item.higherCorners['leftTop']) yRotation = Math.PI / 2;
+        if (item.higherCorners['rightBottom']) yRotation = -Math.PI / 2;
+
+        break;
+      case 2:
+        Model = WORLD_MODELS[3].Component; // Slope1
+        if (item.higherCorners['leftTop'] && item.higherCorners['rightTop']) yRotation = 0;
+        if (item.higherCorners['rightTop'] && item.higherCorners['rightBottom']) yRotation = -Math.PI / 2;
+        if (item.higherCorners['leftBottom'] && item.higherCorners['rightBottom']) yRotation = Math.PI;
+        if (item.higherCorners['leftBottom'] && item.higherCorners['leftTop']) yRotation = Math.PI / 2;
+
+        if (item.higherCorners['leftBottom'] && item.higherCorners['rightTop']) {
+          Model = WORLD_MODELS[6].Component; // Slope4
+          yRotation = 0;
+        }
+
+        if (item.higherCorners['leftTop'] && item.higherCorners['rightBottom']) {
+          Model = WORLD_MODELS[6].Component;
+          yRotation = Math.PI / 2;
+        }
+
+        break;
+      case 3:
+        Model = WORLD_MODELS[5].Component; // Slope3
+        if (!item.higherCorners['rightTop']) yRotation = Math.PI;
+        if (!item.higherCorners['rightBottom']) yRotation = Math.PI / 2;
+        if (!item.higherCorners['leftBottom']) yRotation = 0;
+        if (!item.higherCorners['leftTop']) yRotation = -Math.PI / 2;
+        break;
+      case 4:
+        Model = WORLD_MODELS[2].Component; // Slope4
+
+        break;
+      default:
+        Model = WORLD_MODELS[0].Component; // Pyramid (fallback)
+    }
+
     const position = [
       item.position[0] + worldPosition[0],
       item.position[1] + worldPosition[1],
       item.position[2] + worldPosition[2],
     ];
-    return <Model key={item.key} position={position} {...restProps} />;
+    return <Model key={item.key} position={position} rotation={[0, yRotation, 0]} {...restProps} />;
   });
 }
 

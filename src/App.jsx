@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unknown-property */
 import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls, Environment, Grid } from '@react-three/drei';
 import { Leva, monitor, useControls } from 'leva';
 import * as THREE from 'three';
 import envUrl from './assets/golden_gate_hills_2k.hdr?url';
@@ -39,6 +39,8 @@ function App() {
         <Canvas camera={{ position: [0, 20, 16], fov: 60 }} dpr={[1, 2]} shadows={{ type: THREE.PCFSoftShadowMap }}>
           <FpsMonitor />
           <Environment files={envUrl} environmentRotation={[0, -Math.PI, 0]} environmentIntensity={0.7} />
+          {/* <Grid args={[100, 100]} position={[0, 0, 0]} /> */}
+          <axesHelper args={[12]} />
           {/* <ambientLight intensity={2} /> */}
           {/* <spotLight position={[0, 10, 0]} angle={0.5} penumbra={1} decay={0} intensity={1.2} /> */}
           {/* <rectAreaLight
