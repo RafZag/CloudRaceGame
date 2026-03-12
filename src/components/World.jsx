@@ -18,15 +18,7 @@ const WORLD_MODELS = [
   { key: 'slope4', Component: Slope4 },
 ];
 
-function createRng(seed) {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const DEFAULT_HEIGHT_COLORS = ['#0077D0', '#523932', '#4D9120', '#295011', '#8D837F', '#D9C9C4'];
 
 function createPerlin(seed) {
   const random = (() => {
@@ -80,9 +72,15 @@ function gridKey(x, z) {
   return `${x}:${z}`;
 }
 
-function World({ countX = 20, countZ = 20, spacing = 4, ...props }) {
+function getClampedPaletteColor(palette, index) {
+  const clampedIndex = Math.max(0, Math.min(index, palette.length - 1));
+  return palette[clampedIndex];
+}
+
+function World({ countX = 20, countZ = 20, spacing = 4, heightColors = DEFAULT_HEIGHT_COLORS, ...props }) {
   const { position: worldPosition = [0, 0, 0], ...restProps } = props;
-  const controls = useControls('Pyramid Grid', {
+  const palette = heightColors.length > 0 ? heightColors : DEFAULT_HEIGHT_COLORS;
+  const controls = useControls('World Grid', {
     countX: { value: countX, min: 1, max: 80, step: 1 },
     countZ: { value: countZ, min: 1, max: 80, step: 1 },
     noiseScale: { value: 0.02, min: 0.01, max: 0.1, step: 0.01 },
@@ -116,6 +114,12 @@ function World({ countX = 20, countZ = 20, spacing = 4, ...props }) {
       }
     }
 
+    const heights = items.map((item) => item.snappedY);
+    const uniqueHeights = Array.from(new Set(heights)).sort((a, b) => a - b);
+    const tintByHeight = new Map(
+      uniqueHeights.map((height, index) => [height, getClampedPaletteColor(palette, index)]),
+    );
+
     const itemByGrid = new Map();
     items.forEach((item) => {
       itemByGrid.set(gridKey(item.gridX, item.gridZ), item);
@@ -143,11 +147,12 @@ function World({ countX = 20, countZ = 20, spacing = 4, ...props }) {
 
       return {
         ...item,
+        tint: tintByHeight.get(item.snappedY),
         cornerNeighbors,
         higherCorners,
       };
     });
-  }, [controls.countX, controls.countZ, controls.spacing, controls.noiseScale, controls.noiseMultiplier, perlin]);
+  }, [controls.countX, controls.countZ, controls.noiseScale, controls.noiseMultiplier, spacing, perlin, palette]);
 
   return placements.map((item) => {
     let Model = WORLD_MODELS[item.modelIndex].Component;
@@ -208,7 +213,7 @@ function World({ countX = 20, countZ = 20, spacing = 4, ...props }) {
       item.position[1] + worldPosition[1],
       item.position[2] + worldPosition[2],
     ];
-    return <Model key={item.key} position={position} rotation={[0, yRotation, 0]} {...restProps} />;
+    return <Model key={item.key} tint={item.tint} position={position} rotation={[0, yRotation, 0]} {...restProps} />;
   });
 }
 

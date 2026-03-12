@@ -1,23 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import * as THREE from 'three';
+/* eslint-disable react/no-unknown-property, react/prop-types */
 import { useGLTF } from '@react-three/drei';
 import slope2Url from '../../assets/gltf/world/slope2.glb?url';
+import { useOptionalTexture, useWorldModelScene } from './useWorldModelMaterial';
 
-function Slope2(props) {
+function Slope2({ tint = '#ffffff', texture, textureUrl, roughness, metalness, ...props }) {
   const { scene } = useGLTF(slope2Url);
-  const clonedScene = useMemo(() => scene.clone(true), [scene]);
-
-  useEffect(() => {
-    clonedScene.traverse((child) => {
-      if (child.isMesh) {
-        if (child.geometry && child.geometry.isGeometry) {
-          child.geometry = new THREE.BufferGeometry().fromGeometry(child.geometry);
-        }
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-  }, [clonedScene]);
+  const loadedTexture = useOptionalTexture(textureUrl);
+  const map = texture ?? loadedTexture;
+  const clonedScene = useWorldModelScene(scene, { tint, map, roughness, metalness });
 
   return <primitive object={clonedScene} {...props} />;
 }
