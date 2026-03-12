@@ -55,8 +55,18 @@ export function useWorldModelScene(scene, { tint = '#00ff00', map = undefined, r
         return;
       }
 
-      if (child.geometry && child.geometry.isGeometry) {
-        child.geometry = new THREE.BufferGeometry().fromGeometry(child.geometry);
+      if (!child.geometry) {
+        return;
+      }
+
+      if (!child.geometry.isBufferGeometry) {
+        const convertedGeometry = child.geometry.toBufferGeometry?.();
+        if (convertedGeometry?.isBufferGeometry) {
+          child.geometry = convertedGeometry;
+        } else {
+          console.warn('Expected BufferGeometry on world mesh, but got non-buffer geometry.', child);
+          return;
+        }
       }
 
       child.castShadow = true;

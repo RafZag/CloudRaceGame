@@ -77,15 +77,15 @@ function getClampedPaletteColor(palette, index) {
   return palette[clampedIndex];
 }
 
-function World({ countX = 20, countZ = 20, spacing = 4, heightColors = DEFAULT_HEIGHT_COLORS, ...props }) {
+function World({ countX = 50, countZ = 50, spacing = 4, heightColors = DEFAULT_HEIGHT_COLORS, ...props }) {
   const { position: worldPosition = [0, 0, 0], ...restProps } = props;
   const palette = heightColors.length > 0 ? heightColors : DEFAULT_HEIGHT_COLORS;
   const controls = useControls('World Grid', {
     countX: { value: countX, min: 1, max: 80, step: 1 },
     countZ: { value: countZ, min: 1, max: 80, step: 1 },
-    noiseScale: { value: 0.02, min: 0.01, max: 0.1, step: 0.01 },
-    noiseMultiplier: { value: 8, min: 0, max: 40, step: 0.1 },
-    noiseSeed: { value: 1, min: 0, max: 9999, step: 1 },
+    noiseScale: { value: 1.0, min: 0.01, max: 2, step: 0.01 },
+    noiseMultiplier: { value: 11, min: 0, max: 40, step: 0.1 },
+    noiseSeed: { value: 2280, min: 0, max: 9999, step: 1 },
   });
 
   const perlin = useMemo(() => createPerlin(controls.noiseSeed), [controls.noiseSeed]);
@@ -96,7 +96,7 @@ function World({ countX = 20, countZ = 20, spacing = 4, heightColors = DEFAULT_H
       for (let z = 0; z < controls.countZ; z += 1) {
         const baseX = (x - (controls.countX - 1) / 2) * spacing;
         const baseZ = (z - (controls.countZ - 1) / 2) * spacing;
-        const noise = perlin(baseX * controls.noiseScale, baseZ * controls.noiseScale);
+        const noise = perlin(baseX * controls.noiseScale * 0.01, baseZ * controls.noiseScale * 0.01);
         const rawY = noise * controls.noiseMultiplier;
         const stepY = 2;
         const snappedY = Math.round(rawY / stepY) * stepY;
