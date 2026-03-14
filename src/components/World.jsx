@@ -18,8 +18,6 @@ const WORLD_MODELS = [
   { key: 'slope4', Component: Slope4 },
 ];
 
-const DEFAULT_HEIGHT_COLORS = ['#0077D0', '#523932', '#4D9120', '#295011', '#8D837F', '#D9C9C4'];
-
 function createPerlin(seed) {
   const random = (() => {
     let t = seed >>> 0;
@@ -72,20 +70,16 @@ function gridKey(x, z) {
   return `${x}:${z}`;
 }
 
-function getClampedPaletteColor(palette, index) {
-  const clampedIndex = Math.max(0, Math.min(index, palette.length - 1));
-  return palette[clampedIndex];
-}
-
-function World({ countX = 50, countZ = 50, spacing = 4, heightColors = DEFAULT_HEIGHT_COLORS, ...props }) {
+function World({ countX = 50, countZ = 50, spacing = 4, ...props }) {
   const { position: worldPosition = [0, 0, 0], ...restProps } = props;
-  const palette = heightColors.length > 0 ? heightColors : DEFAULT_HEIGHT_COLORS;
+
   const controls = useControls('World Grid', {
     countX: { value: countX, min: 1, max: 80, step: 1 },
     countZ: { value: countZ, min: 1, max: 80, step: 1 },
     noiseScale: { value: 1.0, min: 0.01, max: 2, step: 0.01 },
     noiseMultiplier: { value: 11, min: 0, max: 40, step: 0.1 },
     noiseSeed: { value: 2280, min: 0, max: 9999, step: 1 },
+    yTextureShift: { value: 0, min: -5, max: 5, step: 1 },
   });
 
   const perlin = useMemo(() => createPerlin(controls.noiseSeed), [controls.noiseSeed]);
@@ -114,12 +108,6 @@ function World({ countX = 50, countZ = 50, spacing = 4, heightColors = DEFAULT_H
       }
     }
 
-    const heights = items.map((item) => item.snappedY);
-    const uniqueHeights = Array.from(new Set(heights)).sort((a, b) => a - b);
-    const tintByHeight = new Map(
-      uniqueHeights.map((height, index) => [height, getClampedPaletteColor(palette, index)]),
-    );
-
     const itemByGrid = new Map();
     items.forEach((item) => {
       itemByGrid.set(gridKey(item.gridX, item.gridZ), item);
@@ -147,12 +135,11 @@ function World({ countX = 50, countZ = 50, spacing = 4, heightColors = DEFAULT_H
 
       return {
         ...item,
-        tint: tintByHeight.get(item.snappedY),
         cornerNeighbors,
         higherCorners,
       };
     });
-  }, [controls.countX, controls.countZ, controls.noiseScale, controls.noiseMultiplier, spacing, perlin, palette]);
+  }, [controls.countX, controls.countZ, controls.noiseScale, controls.noiseMultiplier, spacing, perlin]);
 
   return placements.map((item) => {
     let Model = WORLD_MODELS[item.modelIndex].Component;
@@ -213,7 +200,16 @@ function World({ countX = 50, countZ = 50, spacing = 4, heightColors = DEFAULT_H
       item.position[1] + worldPosition[1],
       item.position[2] + worldPosition[2],
     ];
-    return <Model key={item.key} tint={item.tint} position={position} rotation={[0, yRotation, 0]} {...restProps} />;
+    return (
+      <Model
+        key={item.key}
+        snappedY={item.snappedY}
+        yTextureShift={controls.yTextureShift}
+        position={position}
+        rotation={[0, yRotation, 0]}
+        {...restProps}
+      />
+    );
   });
 }
 

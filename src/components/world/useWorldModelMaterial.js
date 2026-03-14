@@ -81,8 +81,13 @@ export function useWorldModelScene(scene, { tint = '#00ff00', map = undefined, r
 
         const nextMaterial = material.clone();
 
-        if (nextMaterial.color && tint != null) {
-          nextMaterial.color.set(tint);
+        if (nextMaterial.color) {
+          if (map) {
+            // Prevent base color from multiplying the texture map.
+            nextMaterial.color.set('#ffffff');
+          } else if (tint != null) {
+            nextMaterial.color.set(tint);
+          }
         }
 
         if ('roughness' in nextMaterial && roughness != null) {

@@ -2,12 +2,16 @@
 import { useGLTF } from '@react-three/drei';
 import planeUrl from '../../assets/gltf/world/plane_high.glb?url';
 import { useOptionalTexture, useWorldModelScene } from './useWorldModelMaterial';
+import { getHeightPaletteValue, WORLD_HEIGHT_COLORS } from './worldElementAppearance';
+const PLANE_HIGH_TEXTURES = [];
 
-function PlaneHigh({ tint = '#ffffff', texture, textureUrl, roughness, metalness, ...props }) {
+function PlaneHigh({ snappedY = 0, yTextureShift = 0, tint, texture, textureUrl, roughness, metalness, ...props }) {
   const { scene } = useGLTF(planeUrl);
-  const loadedTexture = useOptionalTexture(textureUrl);
+  const resolvedTextureUrl = textureUrl ?? getHeightPaletteValue(PLANE_HIGH_TEXTURES, snappedY, yTextureShift);
+  const loadedTexture = useOptionalTexture(resolvedTextureUrl);
   const map = texture ?? loadedTexture;
-  const clonedScene = useWorldModelScene(scene, { tint, map, roughness, metalness });
+  const resolvedTint = tint ?? getHeightPaletteValue(WORLD_HEIGHT_COLORS, snappedY, yTextureShift) ?? '#ffffff';
+  const clonedScene = useWorldModelScene(scene, { tint: resolvedTint, map, roughness, metalness });
 
   return <primitive object={clonedScene} {...props} />;
 }
